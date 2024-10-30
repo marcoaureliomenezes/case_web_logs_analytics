@@ -1,0 +1,9 @@
+mnt/airflow/logs/
+mnt/airflow/plugins/
+mnt/airflow/config
+
+__pycache__
+
+services/conf/.secrets.conf
+
+services/conf/.credentials_pg_airflow.conf

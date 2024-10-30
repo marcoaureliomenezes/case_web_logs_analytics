@@ -1,0 +1,7 @@
+pyspark==3.5.1
+requests==2.32.3
+jupyterlab==4.2.5
+pyiceberg[s3fs,hive]==0.7.1
+requests
+rand-engine==0.1.1
+ipython_sql

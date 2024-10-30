@@ -1,152 +1,259 @@
-## **Análise de Logs Web com Apache Spark**
+## 2. Arquitetura técnica e serviços
 
-Você foi contratado como Data Engineer por uma empresa de tecnologia que oferece serviços online. Sua tarefa é analisar os logs de acesso ao servidor web da empresa, os quais são cruciais para monitorar a performance do sistema, identificar padrões de uso e detectar possíveis problemas de segurança.
+Para construção da solução uma plataforma de dados com diferentes serviços precisa ser construída. Cada serviço desempenha um papel específico. O intuito dessa seção é apresentar tais serviços, características e casos de uso, bem como a forma com que eles se relacionam.
 
-Como parte do seu trabalho, você recebeu um arquivo de log contendo registros de requisições HTTP feitas ao servidor da empresa ao longo de alguns dias. Sua missão é processar e analisar esses logs para extrair informações relevantes, auxiliando a equipe de operações a compreender melhor o comportamento dos usuários e a performance da infraestrutura. Para isso, você utilizará o **Apache Spark**, um framework amplamente usado para processamento distribuído de grandes volumes de dados.
+- A ferramenta **docker** foi usada para instanciar todos os serviços necessários localmente na forma de containers. 
+- Na pasta `/services` estão definidos **arquivos yml** nos quais os serviços estão declarados.
+- Os arquivos yml são usados para instanciar os serviços usando o **docker-compose**.
+- É também possível instanciar os containers em diferentes máquinas usando o **docker swarm**.
+- Para automatizar o deploy dos serviços, foi criado um **Makefile** com comandos para build, deploy e remoção dos serviços. Mais detalhes na seção 6.
 
-O arquivo de log segue o padrão **Web Server Access Log**, e cada linha representa uma requisição HTTP. Com base nos dados do arquivo, responda às seguintes perguntas:
 
-### **Desafio:**
-1. **Identifique as 10 maiores origens de acesso (Client IP) por quantidade de acessos.**
-2. **Liste os 6 endpoints mais acessados, desconsiderando aqueles que representam arquivos.**
-3. **Qual a quantidade de Client IPs distintos?**
-4. **Quantos dias de dados estão representados no arquivo?**
-5. **Com base no tamanho (em bytes) do conteúdo das respostas, faça a seguinte análise:**
-   - O volume total de dados retornado.
-   - O maior volume de dados em uma única resposta.
-   - O menor volume de dados em uma única resposta.
-   - O volume médio de dados retornado.
-   - *Dica:* Considere como os dados podem ser categorizados por tipo de resposta para realizar essas análises.
-6. **Qual o dia da semana com o maior número de erros do tipo "HTTP Client Error"?**
+**Observação**: A arquitetura de serviços reproduzida tem como referência projetos pessoais desenvolvidos nos seguintes repositórios:
+- https://github.com/marcoaureliomenezes/ice-lakehouse
+- https://github.com/marcoaureliomenezes/dd_chain_explorer
 
----
 
-### **Deployment:**
+### 2.1. Camada Lakehouse
 
-Você tem duas opções para o deployment do seu projeto. Escolha a que preferir para entregar sua solução. Certifique-se de seguir todas as instruções para a opção escolhida.
+Na camada de serviços Lakehouse estão os serviços necessários para montar o Lake House. Esses serviços estão definidos no arquivo `/services/lakehouse.yml`. São eles:
 
-#### **Opção 1: Docker**
+[![lakehouse](img/schema_arquitetura.png)](lakehouse.png)
 
-Se você optar por utilizar **Docker** para o deployment, siga as instruções abaixo:
 
-1. **Repositório Github Público:**
-   - Submeta seu código em um repositório público no GitHub.
+#### 2.1.1. Storage - MinIO
 
-2. **Arquivo README.md:**
-   - Incluir um arquivo `README.md` que contenha:
-      - **Instruções de instalação**: Detalhe as dependências e como configurar o ambiente para rodar o projeto localmente.
-      - **Instruções de execução**: Explique como rodar o projeto, descrevendo os comandos necessários e como interpretar a saída do programa.
+O MinIO é um serviço de armazenamento de objetos compatível com S3 é usado como storage para data Lakes. Em ambiente produtivo pode ser facilmente substituído pelo S3. Para mesma finalidade, outras opções de storage poderiam ser usadas, como o ADLS da Azure, ou um cluster Hadoop com seu HDFS.
 
-3. **Dockerfile:**
-   - Forneça um `Dockerfile` que contenha todas as dependências necessárias para rodar a aplicação.
-   - Inclua também um arquivo `docker-compose.yml` que permita rodar o projeto facilmente com um único comando `docker-compose up`.
-   - O contêiner deve estar pronto para processar o arquivo de log e fornecer as respostas para as questões do desafio.
+**Observação**: Após deploy de cluster uma UI do MinIO estará disponível em `http://localhost:9001`.
 
----
+[![minio](img/minio.png)](minio.png)
 
-#### **Opção 2: Databricks Community Edition**
+#### 2.1.2. Formato de tabela - Iceberg
 
-Se preferir, você pode utilizar o **Databricks Community Edition** para desenvolver e testar sua solução. Siga as instruções abaixo:
+- Formato de tabela que permite operações de escrita e atualização de dados, controle de versão, qualidade de dados, otimização de queries através de Z-Ordering e tecnicas de otimização de small files.
+- Como formato análogo pode ser usado o Delta Lake, o formato open source debaixo do Databricks.
 
-1. **Criação da Conta e Configuração do Ambiente:**
-   - Crie uma conta gratuita em [Databricks Community Edition](https://community.cloud.databricks.com/).
-   - Importe o arquivo de log para o ambiente do Databricks (você pode fazer upload diretamente ou usar um caminho HTTP para acessá-lo).
+**Observação**: Iceberg é uma especificação de formato de tabela e portanto não um serviço em si. Para trabalhar com tabelas iceberg é necessário que os seviços de catálogo, armazenamento, processamento e query engine sejam compatíveis com tabelas iceberg, sendo necessário para alguns casos a instalação de uma biblioteca para suporte a iceberg.
 
-2. **Notebook:**
-   - Desenvolva a solução usando um notebook Databricks com o código em **Python** ou **Scala**.
-   - Certifique-se de que o código está bem estruturado e documentado.
+#### 2.1.3. Catalogo de tabelas - Nessie
 
-3. **Entrega:**
-   - Inclua um link para o notebook Databricks no seu repositório GitHub ou adicione o código completo diretamente no repositório.
-   - No arquivo `README.md`, inclua:
-      - **Instruções de como configurar e executar o código no Databricks**.
+O **Projeto Nessie** e um catálogo de tabelas open source compatível com tabelas iceberg e que adiciona uma camada de controle de versão sobre as tabelas iceberg, estilo Git. Como opção de catalogo de tabelas pode ser usado o Glue Catalog, em ambiente AWS, e o Unity Catalog em um lakehouse no databricks associado a delta tables.
 
----
+**O Nessie usa o banco de dados Postgres** para persistir o estado do catálogo de tabelas. Esse Postgres também deployado como container.
 
-### **Seção Opcional: Armazenamento dos Logs**
+#### 2.1.4. Query Engine - Dremio
 
-Como uma etapa adicional opcional, você pode gravar os logs processados em um sistema de armazenamento persistente. Se optar por realizar esta etapa, você pode escolher entre gravar os dados em um banco de dados de sua preferência ou utilizar um formato de armazenamento otimizado como o **Delta Lake**.
+Dremio é um serviço de query engine que permite a execução de queries SQL sobre dados armazenados em diferentes fontes de dados, como S3, HDFS, RDBMS, NoSQL, etc. Como serviço análogo pode ser usado o Trino, o Athena, entre outros.
 
-#### **Opção 1: Banco de Dados de Sua Escolha**
+**Observação**: Após deploy de cluster uma UI do Dremio estará disponível em `http://localhost:9047`.
 
-1. **Escolha do Banco de Dados:**
-   - Você tem liberdade para escolher o tipo de banco de dados que melhor se adequa à sua solução. Algumas opções incluem:
-      - **Banco de dados relacional** (ex: PostgreSQL, MySQL).
-      - **Banco de dados NoSQL** (ex: MongoDB, Elasticsearch).
+[![dremio](img/dremio.png)](dremio.png)
 
-2. **Estruturação dos Dados:**
-   - Crie uma estrutura de tabelas coerente para armazenar os dados dos logs processados.
-      - Como você organizaria esses dados? (Por exemplo, uma tabela de requisições HTTP com colunas para Client IP, Endpoint, Status Code, Response Size, etc.)
+### 2.2. Serviços de Processamento
 
-3. **Justificativa:**
-   - Inclua no `README.md` uma breve justificativa sobre por que escolheu determinado banco de dados e como ele facilita futuras análises.
+Na camada de processamento estão os serviços necessários para processar os dados. Foi utilizado o **Apache Spark**, ferramenta de processamento em memória distribuído e tolerante a falhas. Os serviços para processamento estão definidos no arquivo `/services/processing.yml`. Abaixo estão algumas características do Spark e dos serviços deployados.
 
-4. **Implementação:**
-   - Forneça no código a integração com o banco de dados escolhido e mostre como os dados processados são gravados de forma eficiente.
+- **Configuração para deploy de cluster Spark**: 2 componentes principais de um cluster Spark é o Spark Master e os Spark Workers.
+    - O Nó ou serviço Spark Master gerencia a execução de jobs Spark no cluster.
+    - Os Nós ou serviços Spark Workers executam as tarefas dos jobs Spark.
+- **Configuração de aplicação Spark**: 2 componentes principais de uma aplicação Spark são o driver e os executors.
+    - O driver é responsável por orquestrar a execução do job.
+    - Os executors são responsáveis por executar as tarefas.
+- **Forma de deploy de aplicação Spark**: Pode ser do tipo cluster ou client client mode. Essa configuração determina se o driver executará a partir de
+    - **Cluster mode**: O driver executará no cluster Spark.
+    - **Client mode**: O driver executará no cliente que submeteu o job.
+ client ou aplicação que submeteu o job. Ou se executará no cluster Spark em algum dos workers.
+- **Gerenciamento de recursos do cluster**: Um cluster spark pode ser deployado de forma standalone, ou usando ferramentas como **Kubernetes**, **YARN**, **Mesos** para gerenciar recursos do cluster.
+- **Configuração Spark Standalone**: Para um cluster Spark deployado de forma Standalone, a configuração de serviços **1 Spark Master** e **N Spark Worker** é o padrão. A quantidade "N" de workers pode ser ajustada conforme a necessidade de recursos computacionais.
 
-#### **Opção 2: Delta Lake (para Databricks)**
 
-Se você escolher o **Databricks Community Edition** para o desafio, recomendamos que utilize o **Delta Lake** como sistema de armazenamento, dadas suas vantagens em relação à performance, confiabilidade e versionamento dos dados.
+#### 2.2.1. Spark Master
 
-1. **Criação da Tabela Delta:**
-   - Após processar os dados do log, armazene o resultado em uma tabela **Delta**:
+- Serviço que gerencia a execução de jobs Spark no cluster.
+- O container do processo Spark Master expõe uma UI chamada Spark UI, disponível em `http://localhost:18080`, onde é possível monitorar a execução dos jobs.
 
-     ```python
-     df.write.format("delta").mode("overwrite").save("/mnt/delta/logs_delta")
-     ```
+#### 2.2.2. Spark Workers
 
-2. **Consulta e Manutenção dos Dados:**
-   - Utilize comandos Spark SQL ou DataFrame API para consultar e gerenciar a tabela Delta:
+- Serviço que executa as tarefas dos jobs Spark.
+- Nesse case fsão instanciados **2 workers com 1 core e 1GB de memória cada**.
 
-     ```python
-     df_delta = spark.read.format("delta").load("/mnt/delta/logs_delta")
-     df_delta.show()
-     ```
+[![spark_UI](img/spark_UI.png)](spark_UI.png)
 
-3. **Entrega:**
-   - Inclua no arquivo `README.md`:
-      - As instruções para configurar e acessar o Delta Lake.
-      - Como executar as operações de escrita e leitura com o Delta Lake.
+### 2.3. Aplicações Python e Spark
 
----
+Existe uma camada de serviços que representa as aplicações. O arquivo `/services/applications.yml` contém a definição dos serviços que representam as aplicações. São elas:
 
-### **Critérios de Avaliação:**
+- **Jupyterlab**: Ambiente de desenvolvimento interativo para aplicações Spark.
+    - O notebook age como driver, submetendo jobs ao cluster Spark.
+    - O Jupyterlab estará disponível em `http://localhost:8888`.
+- **Serviço Python Job**: Baseada na imagem python construída em `/docker/app_layer/python_jobs`.
+- **Serviço Spark Job**: Baseada na imagem spark construída em `/docker/app_layer/spark_jobs`.
 
-1. **Corretude dos Resultados:**
-   - As respostas para o desafio devem estar corretas, com base nos dados fornecidos no arquivo de log.
+#### Características dos jobs Python e Spark
 
-2. **Eficiência do Código:**
-   - Avalia-se o uso eficiente do **Apache Spark** para processamento de dados, verificando a capacidade de lidar com grandes volumes de dados e realizar operações de maneira eficiente.
+Os serviços `Python Job` e `Spark Job` definidos no arquivo `applications.yml` são usados no desenvolvimento de aplicações Python e Spark.
 
-3. **Clareza e Organização do Código:**
-   - O código deve ser claro, bem organizado, e seguir boas práticas de programação, como modularização, reutilização de funções e comentários explicativos onde necessário.
+Esses serviços são baseados nas imagens mencionadas e cada um deles deve ter seu entrypoint definido para executar o job desejado, pois a imagem em si tem entrypoint definido para dormir infinitamente.
 
-4. **Documentação:**
-   - O arquivo `README.md` deve ser completo e bem estruturado, contendo instruções claras sobre:
-      - Instalação e configuração do ambiente.
-      - Execução do projeto.
-      - Explicações sobre a escolha das tecnologias e banco de dados (se aplicável).
+No pipeline de fato, essas imagens são buildadas e o **Apache Airflow usa os operadores DockerOperator ou DockerSwarmOperator** para executar esses jobs.
 
-5. **Deployment (Docker ou Databricks):**
-   - **Para Docker:**
-      - O `Dockerfile` e o `docker-compose.yml` devem estar corretamente configurados, permitindo que o projeto seja executado de maneira fácil com o comando `docker-compose up`.
-   - **Para Databricks:**
-      - O notebook deve ser bem estruturado e funcional, com as instruções para execução no Databricks Community Edition claramente descritas no `README.md`.
+### 2.4. Serviço de orquestração
 
-6. **Manutenção e Escalabilidade:**
-   - Avaliação da facilidade de manutenção do código e da preparação para cenários de escalabilidade, como aumento no volume de dados ou necessidade de processamento mais complexo.
+**O Apache Airflow** como escolhido como ferramenta de orquestração do pipeline de dados. O Airflow é uma plataforma de orquestração de workflows, onde é possível definir, agendar e monitorar tarefas. Os serviços correlacionados ao Airflow estão definidos no arquivo `/services/orchestration.yml`.
 
-7. **Entrega e Organização do Repositório:**
-   - O repositório no GitHub deve ser organizado, com commits descritivos, pastas claras, e arquivos adequadamente nomeados, facilitando a navegação.
+O Airflow pode ser deployado em um cluster Kubernetes, em um cluster de máquinas virtuais, em um cluster de containers, entre outros. A arquitetura de serviços necessários para o Airflow pode variar, de acordo com o tipo de executor e workloads a serem executados. 
 
-8. **Testes:**
-   - Implementação de testes unitários para as funções principais será um diferencial importante. A cobertura de código em termos de testes será levada em consideração.
+O airflow disponibiliza os **tipos de executores LocalExecutor, CeleryExecutor e KubernetesExecutor**, cada um com suas características e trade-offs. Para esse case a configuração do airflow foi:
 
-9. **Seção Opcional de Armazenamento:**
-   - **Para Banco de Dados:**
-      - Avaliação da estruturação correta das tabelas, justificação da escolha do banco de dados, e eficiência na integração e gravação dos dados processados.
-   - **Para Delta Lake (Databricks):**
-      - Avaliação da correta implementação e utilização do **Delta Lake**, incluindo a criação da tabela Delta, consultas, e manutenção dos dados.
+- **LocalExecutor**, para execução das tarefas em paralelo no mesmo host onde o Airflow está deployado.
+- **Uso de DockerOperator**, para execução de tarefas em containers, desacoplando o ambiente de execução do ambiente de deploy.
+- Os seguintes serviços foram deployados:
+    - **Postgres**: como backend de metadados do Airflow. Armazena informações sobre DAG Runs, Tasks, Logs, etc.
+    - **Airflow Webserver**: como interface web do Airflow, disponível em `http://localhost:8080`.
+    - **Airflow Scheduler**: como serviço que executa as tarefas agendadas pelo Airflow.
+    - **Airflow init**: como serviço que inicializa o Airflow, criando conexões, variáveis, pools, etc.
 
-10. **Criatividade e Soluções Alternativas:**
-    - Soluções inovadoras ou criativas para o problema, bem como a utilização de técnicas e ferramentas que não foram explicitamente mencionadas, serão consideradas um diferencial.
+[![airflow](img/airflow.png)](airflow.png)
+
+### 2.5. Serviços para monitoramento e observabilidade.
+
+Para monitoramento e observabilidade do pipeline de dados, foram utilizados os seguintes componentes que estão definidos no arquivo `/services/monitoring.yml`. São eles:
+- **Prometheus**: Serviço de monitoramento de telemetria. Tem interface web disponível em `http://localhost:9090`.
+- **Node Exporter**: Agente para coletar dados de telemetria de servidores e exportá-los para o Prometheus.
+- **Cadvisor**: Agente para coletar dados de telemetria do docker e exportá-los para o Prometheus.
+- **Grafana**: Serviço de visualização de dados usado aqui em conjunto com o Prometheus. Tem interface web disponível em `http://localhost:3000`.
+
+### Dashboards ao Grafana
+
+No Grafana é possível adicionar importar dashboards prontos para monitoramento de diferentes serviços. Nesse trabalho foram adicionados dashboards para monitoramento do Node Exporter e do Docker.
+- **Dashboard Node Exporter**:
+    - Monitora métricas de hardware e sistema operacional.
+    - ID do dashboard: 1860.
+    - Provedor de dados para o dashboard: Prometheus.
+- **Dashboard Docker**:
+    - Monitora métricas do Docker.
+    - ID do dashboard: 193.
+    - Provedor de dados para o dashboard: Prometheus.
+
+<img src="./img/reproduction/7_grafana_node_exporter.png" alt="grafana_node_exporter" width="80%"/>
+
+
+
+
+## 5. Reprodução do Case
+
+### 5.1. Requisitos
+
+Nessa seção está definido o passo-a-passo para reprodução do case em ambiente local. Essa sessão permite que os avaliadores executem o mesmo e compreendam como ele funciona.
+
+## 5.1. Requisitos
+
+Para reprodução em ambiente local, é necessário que os seguintes requisitos sejam satisfeitos.
+
+1. O case foi desenvolvido e testado em ambiente Linux, distro Ubuntu 22.04.
+2. É necessário possuir uma máquina com no mínimo 16 GB de memória RAM e processador com 4 núcleos, devido ao número de containers que serão instanciados.
+3. Docker instalado e configurado.
+4. Docker Compose e Docker Swarm instalados.
+5. Makefile instalado.
+
+
+### 5.2. Passo a passo para reprodução
+
+Para isso, execute o comando abaixo e em seguida navegue para o diretório do projeto e em seguida navegue para a pasta usando o terminal.
+
+```bash
+git clone git@github.com:marcoaureliomenezes/case_ab_inbev.git && cd case_ab_inbev
+```
+#### 5.1.1 Build de imagens
+
+Neste trabalho existem imagens docker customizadas que precisam ser construídas antes do deploy. São elas:
+
+- Imagem **breweries-spark** e customizada para integração com MinIO, Nessie e Iceberg.
+- Imagem **breweries-spark-notebooks** com Jupyterlab instalado.
+- Imagem **breweries-spark-apps** contendo aplicações Spark para tratamento de dados.
+- Imagem **breweries-python-apps** baseada em  para jobs de ingestão.
+
+As imagens construídas acima tem como imagens base, `python:3.10-slim-buster` e `bitnami/spark:3.5.3`.
+
+```bash
+make build_images
+```
+
+#### 5.1.2.  Deploy de serviços
+
+Para deploy dos serviços, execute o comando abaixo:
+
+```bash
+make deploy_services
+```
+
+#### 5.1.3.  Vendo os serviços
+
+Para visualizar os serviços deployados, execute o comando abaixo:
+
+```bash
+make watch_services
+```
+
+#### 5.1.4.  Parando os serviços
+
+Para parar os serviços deployados, execute o comando abaixo:
+
+```bash
+make stop_services
+```
+
+O comando usa definições no Makefile para construir as imagens e deployar os serviços usando o Docker Compose.
+
+
+### 5.3 Configurações Iniciais em recursos deployados
+
+Quando os recursos são deployado pela 1ª vez, ou caso haja mudança no volume para os serviços abaixo, é necessário que o usuário configure os seguintes recursos:
+
+#### 5.3.1. Serviço de armazenamento Minio
+
+O Minio quando deployado pode ser acessado a partir dos usuários `admin` e `password`. Para acessar o Minio, acesse o endereço `http://localhost:9000`.
+
+Quando o lake é criado, é necessário a criação do bucket `breweries` e criação de API Keys para acesso ao Minio. Para isso, siga os passos abaixo:
+
+1. Acesse o Minio em `http://localhost:9000`.
+2. Faça login com as credenciais `admin` e `password`.
+3. Crie um bucket chamado `breweries`.
+4. Crie uma API Key para acesso ao Minio. Para isso, acesse a aba `Users` e clique em `Add User`.
+5. Armazene as chaves de acesso geradas no arquivo `services/conf/.secrets.conf` nas variáveis **AWS_ACCESS_KEY_ID** e **AWS_SECRET_ACCESS_KEY**.
+
+Dessa forma as credenciais para acesso ao bucket criado serão passadas aos serviços que necessitam acessar o Minio nos arquivos yml atraves da configuração `env_files`.
+
+#### 5.3.2 Ferramenta de query engine Dremio
+
+O Dremio consegue se conectar a diferentes fontes de dados, como Minio, Nessie e Iceberg. Para isso, é necessário configurar as conexões com essas fontes de dados.
+
+
+**Source Nessie**:
+- **Name**:  nessie
+- **Nessie Endpoint URL**: http://nessie:19120/api/v2
+- **Nessie Authentication Type**: None
+- **AWS root path**: warehouse
+- **AWS Access Key**: access_key
+- **AWS Access Secret**: access_secret
+- **Connection Properties**:
+  - **fs.s3a.path.style.access**:   true
+  - **dremio.s3.compat**:   true
+  - **fs.s3a.endpoint**:    minio:9000
+- **Check Encrypted connection**:  false
+
+**Source Minio**
+- **Name**:  minio
+- **AWS Access Key**: AWS_ACCESS_KEY_ID gerado no Minio
+- **AWS Access Secret**: AWS_SECRET_ACCESS_KEY gerado no Minio
+- **Check Enable compatibility mode**
+- **Connection Properties**:
+  - **fs.s3a.path.style.access**:   true
+  - **dremio.s3.compat**:   true
+  - **fs.s3a.endpoint**:    minio:9000
+
+
+#### 5.3.3. Execução de pipelines no Airflow
+
+
