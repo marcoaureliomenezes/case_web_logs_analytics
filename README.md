@@ -1,3 +1,86 @@
+# Case WEB_SERVER_LOGS Analytics
+
+- **Autor**: Marco Aurelio Reis Lima Menezes
+- **Motivo**: Apresentação de solução e implementação para processo seletivo para a vaga de Engenheiro de Dados Sênior
+
+## Índice
+
+- [1. Introdução](#1-introdução)
+- [2. Arquitetura Técnica e Serviços](#2-arquitetura-técnica-e-serviços)
+- [3. Considerações e Arquitetura de Solução](#3-considerações-e-arquitetura-de-solução)
+- [4. Considerações sobre implementação de camadas Bronze, Silver e Gold](#4-considerações-sobre-implementação-de-camadas-bronze-silver-e-gold)
+- [5. Reprodução do Case](#5-reprodução-do-case)
+- [6. Conclusão](#6-conclusão)
+
+
+## 1. Introdução
+
+### 1.1 Enunciado do case
+
+Você foi contratado como Data Engineer por uma empresa de tecnologia que oferece serviços online. Sua tarefa é analisar os logs de acesso ao servidor web da empresa, os quais são cruciais para monitorar a performance do sistema, identificar padrões de uso e detectar possíveis problemas de segurança.
+
+Como parte do seu trabalho, você recebeu um arquivo de log contendo registros de requisições HTTP feitas ao servidor da empresa ao longo de alguns dias. Sua missão é processar e analisar esses logs para extrair informações relevantes, auxiliando a equipe de operações a compreender melhor o comportamento dos usuários e a performance da infraestrutura. Para isso, você utilizará o **Apache Spark**, um framework amplamente usado para processamento distribuído de grandes volumes de dados.
+
+O arquivo de log segue o padrão **Web Server Access Log**, e cada linha representa uma requisição HTTP. Com base nos dados do arquivo, responda às seguintes perguntas:
+
+### **Desafio:**
+1. **Identifique as 10 maiores origens de acesso (Client IP) por quantidade de acessos.**
+2. **Liste os 6 endpoints mais acessados, desconsiderando aqueles que representam arquivos.**
+3. **Qual a quantidade de Client IPs distintos?**
+4. **Quantos dias de dados estão representados no arquivo?**
+5. **Com base no tamanho (em bytes) do conteúdo das respostas, faça a seguinte análise:**
+   - O volume total de dados retornado.
+   - O maior volume de dados em uma única resposta.
+   - O menor volume de dados em uma única resposta.
+   - O volume médio de dados retornado.
+   - *Dica:* Considere como os dados podem ser categorizados por tipo de resposta para realizar essas análises.
+6. **Qual o dia da semana com o maior número de erros do tipo "HTTP Client Error"?**
+
+
+### 1.2. Considerações sobre o case e solução
+
+Não foi passado arquivo, e apesar de encontrar alguns na internet, foi optado por implementar uma solução diferente, construindo-se um pipeline de ingestão, processamento e análise de logs de acesso a servidores web.
+
+
+A origem dos dados foi baseada na criação de dados randômicos para simular logs de acesso a servidores web. Para isso foi utilizada a **biblioteca rand-engine**.
+
+#### 1.2.1 Biblioteca rand-engine
+
+A biblioteca rand-engine foi criada para resolver a dor de ter dados para testar coisas em fluxos de engenharia de dados. E então poder montar diferentes configurações para testar performance, escalabilidade, etc.
+
+- **Link Pypi**: https://pypi.org/project/rand-engine/
+- **Link Github**: https://github.com/marcoaureliomenezes/rand_engine
+
+Com essa biblioteca é possível gerar dados randômicos usando um dicionário de metadados e funções específicas para gerar os dados nessa configuração. Aqui ela foi usada para gerar os logs de acesso a servidores web.
+
+- **O job que gera os dados de web server logs**, transforma em arquivo e envia para o MinIO está em `/docker/app_layer/python_jobs/src/1_send_logs_to_lake.py`.
+- A **classe WSLBatchGenerator** que usa a biblioteca rand-engine para gerar os logs está em `/docker/app_layer/python_jobs/src/wsl_batch_generator.py`.
+- A pasta `/docker/app_layer/python_jobs/` constitui uma imagem docker baseada em python.
+- No pipeline definido no Apache Airflow, um operador DockerOperator executa o job que gera os logs de acesso a servidores web e envia para o MinIO.
+- Os arquivos são transferidos para buckets no MinIO de staging.
+
+### 1.3. Overview da solução
+
+Criada a forma de gerar os dados e envia-los para o MinIO, foi construída uma arquitetura de solução para processamento e análise dos logs de acesso a servidores web. A arquitetura de solução é composta por diferentes camadas, cada uma com um papel específico. As camadas são:
+
+- **Armazenamento de dados**: MinIO
+- **Formato de tabela**: Iceberg
+- **Catalogo de tabelas**: Nessie
+- **Processamento de dados**: Apache Spark
+- **Query Engine**: Dremio
+- **Orquestração**: Apache Airflow
+- **Monitoramento e Observabilidade**: Prometheus, Node Exporter, Cadvisor, Grafana
+
+#### Multi-hop Data Lakehouse
+
+- Os dados brutos contendo os logs de acesso a servidores web são armazenados no MinIO em formato de texto e extensão .log e com compressão gzip.
+
+- **Tabela bronze**: Dados brutos lidos de arquivos de logs de acesso a servidores web. Tabela do tipo iceberg e particionada por data.
+- **Tabela silver**: Dados tratados e limpos, com colunas adicionais para facilitar análises. Tabela do tipo iceberg e particionada por data.
+- **Views gold**: Views que agregam dados de tabelas silver para análises de negócio. 
+
+**Observação**: Existe uma view para cada pergunta do desafio.
+
 ## 2. Arquitetura técnica e serviços
 
 Para construção da solução uma plataforma de dados com diferentes serviços precisa ser construída. Cada serviço desempenha um papel específico. O intuito dessa seção é apresentar tais serviços, características e casos de uso, bem como a forma com que eles se relacionam.
@@ -139,6 +222,9 @@ No Grafana é possível adicionar importar dashboards prontos para monitoramento
 <img src="./img/reproduction/7_grafana_node_exporter.png" alt="grafana_node_exporter" width="80%"/>
 
 
+# 3. Considerações e Arquitetura de Solução
+
+# 4. Considerações sobre implementação de camadas Bronze, Silver e Gold
 
 
 ## 5. Reprodução do Case
@@ -163,7 +249,7 @@ Para reprodução em ambiente local, é necessário que os seguintes requisitos 
 Para isso, execute o comando abaixo e em seguida navegue para o diretório do projeto e em seguida navegue para a pasta usando o terminal.
 
 ```bash
-git clone git@github.com:marcoaureliomenezes/case_ab_inbev.git && cd case_ab_inbev
+git clone git@github.com:marcoaureliomenezes/rand_engine.git && cd rand_engine
 ```
 #### 5.1.1 Build de imagens
 

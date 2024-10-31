@@ -1,23 +1,5 @@
 ## **Análise de Logs Web com Apache Spark**
 
-Você foi contratado como Data Engineer por uma empresa de tecnologia que oferece serviços online. Sua tarefa é analisar os logs de acesso ao servidor web da empresa, os quais são cruciais para monitorar a performance do sistema, identificar padrões de uso e detectar possíveis problemas de segurança.
-
-Como parte do seu trabalho, você recebeu um arquivo de log contendo registros de requisições HTTP feitas ao servidor da empresa ao longo de alguns dias. Sua missão é processar e analisar esses logs para extrair informações relevantes, auxiliando a equipe de operações a compreender melhor o comportamento dos usuários e a performance da infraestrutura. Para isso, você utilizará o **Apache Spark**, um framework amplamente usado para processamento distribuído de grandes volumes de dados.
-
-O arquivo de log segue o padrão **Web Server Access Log**, e cada linha representa uma requisição HTTP. Com base nos dados do arquivo, responda às seguintes perguntas:
-
-### **Desafio:**
-1. **Identifique as 10 maiores origens de acesso (Client IP) por quantidade de acessos.**
-2. **Liste os 6 endpoints mais acessados, desconsiderando aqueles que representam arquivos.**
-3. **Qual a quantidade de Client IPs distintos?**
-4. **Quantos dias de dados estão representados no arquivo?**
-5. **Com base no tamanho (em bytes) do conteúdo das respostas, faça a seguinte análise:**
-   - O volume total de dados retornado.
-   - O maior volume de dados em uma única resposta.
-   - O menor volume de dados em uma única resposta.
-   - O volume médio de dados retornado.
-   - *Dica:* Considere como os dados podem ser categorizados por tipo de resposta para realizar essas análises.
-6. **Qual o dia da semana com o maior número de erros do tipo "HTTP Client Error"?**
 
 ---
 
