@@ -18,15 +18,6 @@ def get_spark_session(app_name):
     "org.projectnessie.spark.extensions.NessieSparkSessionExtensions"
   ]
 
-
-  print(f"AWS_DEFAULT_REGION: {os.getenv('AWS_DEFAULT_REGION')}")
-  print(f"AWS_REGION: {os.getenv('AWS_REGION')}")
-  print(f"AWS_ACCESS_KEY_ID: {os.getenv('AWS_ACCESS')}")
-  print(f"AWS_SECRET_ACCESS_KEY: {os.getenv('AWS_SECRET')}")
-  print(f"NESSIE_URI: {os.getenv('NESSIE_URI')}")
-  print(f"S3_ENDPOINT: {os.getenv('S3_ENDPOINT')}")
-  print(f"BUCKET: {os.getenv('BUCKET')}")
-  print(f"EXECUTION_DATE: {os.getenv('EXECUTION_DATE')}")
   
   conf = (
     pyspark.SparkConf()
@@ -36,7 +27,7 @@ def get_spark_session(app_name):
     #.set('spark.sql.catalog.nessie', "org.apache.iceberg.spark.SparkCatalog")
     #.set('spark.sql.catalog.nessie.s3.path-style-access', 'true')
     .set('spark.sql.catalog.nessie.s3.endpoint', os.getenv("S3_ENDPOINT"))
-    .set('spark.sql.catalog.nessie.warehouse', 's3a://breweries/warehouse')
+    .set('spark.sql.catalog.nessie.warehouse', 's3a://warehouse')
     #.set('spark.sql.catalog.nessie.catalog-impl', 'org.apache.iceberg.nessie.NessieCatalog')
     #.set('spark.sql.catalog.nessie.io-impl', 'org.apache.iceberg.aws.s3.S3FileIO')
     .set('spark.sql.catalog.nessie.uri', os.getenv("NESSIE_URI"))

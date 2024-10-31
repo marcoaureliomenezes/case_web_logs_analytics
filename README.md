@@ -169,10 +169,10 @@ git clone git@github.com:marcoaureliomenezes/case_ab_inbev.git && cd case_ab_inb
 
 Neste trabalho existem imagens docker customizadas que precisam ser construídas antes do deploy. São elas:
 
-- Imagem **breweries-spark** e customizada para integração com MinIO, Nessie e Iceberg.
-- Imagem **breweries-spark-notebooks** com Jupyterlab instalado.
-- Imagem **breweries-spark-apps** contendo aplicações Spark para tratamento de dados.
-- Imagem **breweries-python-apps** baseada em  para jobs de ingestão.
+- Imagem **wsl-spark** e customizada para integração com MinIO, Nessie e Iceberg.
+- Imagem **wsl-spark-notebooks** com Jupyterlab instalado.
+- Imagem **wsl-spark-apps** contendo aplicações Spark para tratamento de dados.
+- Imagem **wsl-python-apps** baseada em  para jobs de ingestão.
 
 As imagens construídas acima tem como imagens base, `python:3.10-slim-buster` e `bitnami/spark:3.5.3`.
 
@@ -215,11 +215,11 @@ Quando os recursos são deployado pela 1ª vez, ou caso haja mudança no volume 
 
 O Minio quando deployado pode ser acessado a partir dos usuários `admin` e `password`. Para acessar o Minio, acesse o endereço `http://localhost:9000`.
 
-Quando o lake é criado, é necessário a criação do bucket `breweries` e criação de API Keys para acesso ao Minio. Para isso, siga os passos abaixo:
+Quando o lake é criado, é necessário a criação do bucket `wsl` e criação de API Keys para acesso ao Minio. Para isso, siga os passos abaixo:
 
 1. Acesse o Minio em `http://localhost:9000`.
 2. Faça login com as credenciais `admin` e `password`.
-3. Crie um bucket chamado `breweries`.
+3. Crie um bucket chamado `wsl`.
 4. Crie uma API Key para acesso ao Minio. Para isso, acesse a aba `Users` e clique em `Add User`.
 5. Armazene as chaves de acesso geradas no arquivo `services/conf/.secrets.conf` nas variáveis **AWS_ACCESS_KEY_ID** e **AWS_SECRET_ACCESS_KEY**.
 

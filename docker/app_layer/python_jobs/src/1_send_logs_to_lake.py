@@ -40,15 +40,15 @@ if __name__ == "__main__":
   ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
   SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
   EXECUTION_DATE = os.getenv("EXECUTION_DATE", "2024-10-21 03:00:00+00:00")
-  BUCKET = os.getenv("BUCKET", "warehouse")
-  LAYER = "bronze"
+  BUCKET = os.getenv("BUCKET")
+  PREFIX_PATH = os.getenv("PREFIX_PATH")
+  
+
 
   logger.info(f"Execution Date: {EXECUTION_DATE}")
-  logger.info(f"Bucket: {BUCKET}")
-  logger.info(f"Layer: {LAYER}")
   logger.info(f"S3 Endpoint: {S3_ENDPOINT}")
-  logger.info(f"Access Key: {ACCESS_KEY}")
-  logger.info(f"Secret Key: {SECRET_KEY}")
+  logger.info(f"Bucket: {BUCKET}")
+  logger.info(f"Prefix Path: {PREFIX_PATH}")
 
   dt_execution_date = dt.strptime(EXECUTION_DATE, "%Y-%m-%d %H:%M:%S%z")
   hours_back = 6
@@ -58,13 +58,11 @@ if __name__ == "__main__":
   transformer = WSLBatchGenerator.web_server_log_transformer
 
   wsl_ingestor = WSLIngestor(logger)
-  paths = wsl_ingestor.config_file_prefix(LAYER, EXECUTION_DATE)
+  paths = wsl_ingestor.config_file_prefix(PREFIX_PATH, EXECUTION_DATE)
   file_name = WSLBatchGenerator.generate_file_name(dt_start, dt_end)
-
 
   WSLBatchGenerator.generate_web_server_log_file(f"{paths['local']}/{file_name}", metadata, transformer, 10**6)
 
-
   wsl_ingestor.config_s3_client_conn(S3_ENDPOINT, ACCESS_KEY, SECRET_KEY, BUCKET)
-  wsl_ingestor.config_file_prefix(LAYER, EXECUTION_DATE)
+  wsl_ingestor.config_file_prefix(PREFIX_PATH, EXECUTION_DATE)
   wsl_ingestor.s3.upload_file(f"{paths['local']}/{file_name}", BUCKET, f"{paths['s3']}/{file_name}")

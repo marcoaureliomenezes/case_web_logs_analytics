@@ -2,14 +2,14 @@
 
 SUB_PATH_DDL=$1
 
-PYSPARK_FILEPATH="/app/0_breweries_ddls/eventual_jobs/${SUB_PATH_DDL}"
+PYSPARK_FILEPATH="/app/0_ddls_commands/eventual_jobs/${SUB_PATH_DDL}"
 
 
-PYFILES_DDL="/app/0_breweries_ddls/breweries_ddl.py,/app/utils/spark_utils.py"
+PYFILES_DDL="/app/0_ddls_commands/wsl_ddl.py,/app/utils/spark_utils.py"
 
 SPARK_MASTER="spark://spark-master:7077"
 
-EXEC_MEMORY=1G
+EXEC_MEMORY=512M
 TOTAL_EXEC_CORES=1
 
 echo "spark-submit                                  "

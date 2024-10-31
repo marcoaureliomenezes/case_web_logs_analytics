@@ -3,3 +3,4 @@ redis
 pandas
 pyarrow
 rand-engine==0.2.0
+faker

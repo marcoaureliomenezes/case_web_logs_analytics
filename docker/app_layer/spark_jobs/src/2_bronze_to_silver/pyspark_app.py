@@ -4,6 +4,7 @@ import logging
 from datetime import datetime as dt
 
 from pyspark.sql.functions import lit, col, split, regexp_replace, date_format, to_timestamp, from_utc_timestamp, to_utc_timestamp, concat
+from spark_utils import get_spark_session
 
 
 class ActorBronzeToSilver:
@@ -15,26 +16,26 @@ class ActorBronzeToSilver:
     self.df_staging = None
     self.df_transformed = None
 
-  def __drop_silver_table_when_needed(self, table_name, table_path):
-    self.spark.sql(f"DROP TABLE IF EXISTS {table_name} PURGE")
 
   def create_silver_table(self, table_name, table_path):
-    self.spark.sql(f"CREATE DATABASE IF NOT EXISTS {table_name.split('.')[0]}")
-    self.__drop_silver_table_when_needed(table_name, table_path)
+    self.spark.sql(f"CREATE NAMESPACE IF NOT EXISTS nessie.silver")
     self.spark.sql(f"""
       CREATE EXTERNAL TABLE IF NOT EXISTS {table_name} (
-      ip_address STRING,
-      user STRING,
-      response_utc_timestamp TIMESTAMP,
-      http_method STRING,
-      http_route STRING,
-      http_protocol STRING,
-      http_status INT,
-      payload_size INT,
-      date_ref STRING)
-    USING DELTA
+      ip_address STRING                 NOT NULL COMMENT 'IP Address',
+      user STRING                       NOT NULL COMMENT 'User authenticated',
+      response_utc_timestamp TIMESTAMP  NOT NULL COMMENT 'Response timestamp in UTC',
+      http_method STRING                NOT NULL COMMENT 'HTTP Method',
+      http_route STRING                 NOT NULL COMMENT 'HTTP Route',
+      http_protocol STRING              NOT NULL COMMENT 'HTTP Protocol',
+      http_status INT                   NOT NULL COMMENT 'HTTP Status',
+      payload_size INT                  NOT NULL COMMENT 'Payload size',
+      date_ref STRING                   NOT NULL COMMENT 'Date reference')
+    USING iceberg
+    PARTITIONED BY (date_ref)
     LOCATION '{table_path}'
-    PARTITIONED BY (date_ref)""")
+    TBLPROPERTIES ('gc.enabled' = 'true')""")
+    self.spark.table(table_name).printSchema()
+    self.logger.info(f"Table {table_name} created")
     return self
 
 
@@ -44,18 +45,23 @@ class ActorBronzeToSilver:
 
   def parse_to_silver_schema(self):
     assert self.df_bronze is not None, "You must read bronze table first using 'read_from_bronze' method"
-    df_clean = self.df_bronze.withColumn('log_clean', regexp_replace('value', '[\\[\\]""]', ''))
-    df_split = df_clean.withColumn('parts', split(col('log_clean'), ' '))
-    self.df_parsed_schema = df_split.select(
-        col('parts').getItem(0).alias('ip_address'),
-        col('parts').getItem(2).alias('user'),
-        col('parts').getItem(3).alias('datetime'),
-        col('parts').getItem(4).alias('timezone'),
-        col('parts').getItem(5).alias('http_method'),
-        col('parts').getItem(6).alias('http_route'),
-        col('parts').getItem(7).alias('http_protocol'),
-        col('parts').getItem(8).cast('int').alias('http_status'),
-        col('parts').getItem(9).cast('int').alias('payload_size')
+    df_parsed_schema = (
+      self.df_bronze.
+       withColumn('log_clean', regexp_replace('value', '[\\[\\]""]', ''))
+      .withColumn('log_clean', split(col('log_clean'), '  '))
+    )
+
+    df_parsed_schema.show(20, False)
+    self.df_parsed_schema = df_parsed_schema.select(
+        col('log_clean').getItem(0).alias('ip_address'),
+        col('log_clean').getItem(2).alias('user'),
+        col('log_clean').getItem(3).alias('datetime'),
+        col('log_clean').getItem(4).alias('timezone'),
+        col('log_clean').getItem(5).alias('http_method'),
+        col('log_clean').getItem(6).alias('http_route'),
+        col('log_clean').getItem(7).alias('http_protocol'),
+        col('log_clean').getItem(8).cast('int').alias('http_status'),
+        col('log_clean').getItem(9).cast('int').alias('payload_size')
     )
     return self
 
@@ -88,20 +94,23 @@ class ActorBronzeToSilver:
 
 if __name__ == "__main__":
   
+  APP_NAME = "STAGING_TO_BRONZE"
   logger = logging.getLogger(__name__)
   logger.setLevel(logging.INFO)
   logger.addHandler(logging.StreamHandler())
-  EXECUTION_DATE = os.getenv("EXECUTION_DATE", "2024-10-21 03:00:00+00:00")
-  
-  BRONZE_TABLE_NAME = "bronze.logs"
-  SILVER_TABLE_NAME = "silver.logs"
-  SILVER_TABLE_PATH = "/mnt/wsl_analytics/silver"
+
+  EXECUTION_DATE = os.getenv("EXECUTION_DATE")
+  BRONZE_TABLE_NAME = os.getenv("BRONZE_TABLE_NAME")
+  SILVER_TABLE_NAME = os.getenv("SILVER_TABLE_NAME")
+  SILVER_TABLE_PATH = os.getenv("SILVER_TABLE_PATH")
 
   EXECUTION_DATE = dt.strptime(EXECUTION_DATE, '%Y-%m-%d %H:%M:%S%z')
   partition_ohour = dt.strftime(EXECUTION_DATE, "%Y-%m-%d-%H")
 
+  spark = get_spark_session(APP_NAME)
+
   status = (
-    ActorBronzeToSilver(logger)
+    ActorBronzeToSilver(spark, logger)
       .create_silver_table(SILVER_TABLE_NAME, SILVER_TABLE_PATH)
       .read_from_bronze(BRONZE_TABLE_NAME, partition_ohour)
       .parse_to_silver_schema()

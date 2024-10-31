@@ -30,25 +30,40 @@ services:
     build: ../docker/app_layer/python_jobs
     container_name: python_job
     <<: *default_config
-    #entrypoint: "python /app/bronze_to_silver/main.py"
+    #entrypoint: "python -u 1_send_logs_to_lake.py"
     volumes:
       - ../docker/app_layer/python_jobs/src:/app
     environment:
-      BUCKET: warehouse
+      EXECUTION_DATE: "2024-10-21 07:00:00+00:00"
+      BUCKET: staging
+      PREFIX_PATH: web-server-logs
 
 
-  spark_job:
+  spark_job_bronze:
     build: ../docker/app_layer/spark_jobs
-    container_name: spark_job
+    container_name: spark_job_bronze
     <<: *default_config
-    #entrypoint: "sh /app/bronze_to_silver/spark-submit.sh"
+    #entrypoint: "sh /app/1_staging_to_bronze/spark-submit.sh"
     volumes:
       - ../docker/app_layer/spark_jobs/src:/app
     environment:
-      EXECUTION_DATE: "2024-10-21 01:00:00+00:00"
-      BRONZE_PATH: s3a://breweries/bronze
-      SILVER_TABLENAME: nessie.silver.breweries
+      EXECUTION_DATE: "2024-10-21 07:00:00+00:00"
+      STAGING_PATH: "s3a://staging/web-server-logs"
+      BRONZE_TABLE_NAME: "nessie.bronze.wsl_logs"
+      BRONZE_TABLE_PATH: "s3a://lakehouse/bronze/wsl_logs"
 
+  spark_job_silver:
+    build: ../docker/app_layer/spark_jobs
+    container_name: spark_job_silver
+    <<: *default_config
+    #entrypoint: "sh /app/2_bronze_to_silver/spark-submit.sh"
+    volumes:
+      - ../docker/app_layer/spark_jobs/src:/app
+    environment:
+      EXECUTION_DATE: "2024-10-21 07:00:00+00:00"
+      BRONZE_TABLE_NAME: "nessie.bronze.wsl_logs"
+      SILVER_TABLE_NAME: "nessie.silver.wsl_logs"
+      SILVER_TABLE_PATH: "s3a://lakehouse/bronze/wsl_logs"
 
 networks:
   weblogs_lake_network:

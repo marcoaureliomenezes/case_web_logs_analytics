@@ -5,15 +5,16 @@ from rand_engine.core.datetime_core import DatetimeCore
 from rand_engine.core.distinct_utils import DistinctUtils
 from rand_engine.main.dataframe_builder import BulkRandEngine
 
-import time
 from datetime import datetime as dt, timedelta
 
+import faker
 import csv
 
 class WSLBatchGenerator:
 
   @staticmethod
   def metadata_case_web_log_server(format, dt_start, dt_end):
+    fake = faker.Faker(locale='pt_BR')
     metadata = {
       "ip_address":dict(method=DistinctCore.gen_distincts_typed, parms=dict(distinct=[fake.ipv4_public() for i in range(1000)])),
       "identificador": dict(method=DistinctCore.gen_distincts_typed, parms=dict(distinct=["-"])),

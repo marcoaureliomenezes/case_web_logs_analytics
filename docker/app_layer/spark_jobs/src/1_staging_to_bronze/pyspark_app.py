@@ -8,7 +8,7 @@ from spark_utils import get_spark_session
 
 class ActorStagingToBronze:
 
-  def __init__(self, logger, spark):
+  def __init__(self, spark, logger):
     self.spark = spark
     self.logger = logger
     self.path_staging = None
@@ -17,14 +17,18 @@ class ActorStagingToBronze:
 
 
   def create_bronze_table(self, table_name, table_path):
-    self.spark.sql(f"CREATE DATABASE IF NOT EXISTS {table_name.split('.')[0]}")
+    self.spark.sql("CREATE NAMESPACE IF NOT EXISTS nessie.bronze")
     self.spark.sql(f"""
       CREATE EXTERNAL TABLE IF NOT EXISTS {table_name} (
-      value STRING,
-      date_ref STRING)
-    USING DELTA
-    LOCATION '{table_path}'
-    PARTITIONED BY (date_ref)""")
+        value STRING    NOT NULL COMMENT 'Raw log line',
+        date_ref STRING NOT NULL COMMENT 'Date reference'
+      )
+      USING iceberg
+      LOCATION '{table_path}'
+      PARTITIONED BY (date_ref)
+      TBLPROPERTIES ('gc.enabled' = 'true')""")
+    self.spark.table(table_name).printSchema()
+    self.logger.info(f"Table {table_name} created")
     return self
 
   def config_path_staging_files(self, prefix, execution_date):
@@ -46,7 +50,7 @@ class ActorStagingToBronze:
   def write_to_bronze(self, table_name, partition_ohour):
     assert self.df_staging is not None, "You must read the files from staging"
     _ = (
-      self.df_transformed
+      self.df_staging
         .withColumn("date_ref", lit(partition_ohour))
         .write
         .mode("overwrite")
@@ -56,29 +60,28 @@ class ActorStagingToBronze:
     return True
 
 
-
 if __name__ == "__main__":
   
-  logger = logging.getLogger(__name__)
+  APP_NAME = "STAGING_TO_BRONZE"
+  logger = logging.getLogger(APP_NAME)
   logger.setLevel(logging.INFO)
   logger.addHandler(logging.StreamHandler())
-  EXECUTION_DATE = os.getenv("EXECUTION_DATE", "2024-10-21 03:00:00+00:00")
-  
-  PREFIX = "/mnt/wsl_analytics/staging"
-  BRONZE_TABLE_NAME = "bronze.logs"
-  BRONZE_TABLE_PATH = "/mnt/wsl_analytics/bronze"
+
+  EXECUTION_DATE = os.getenv("EXECUTION_DATE")
+  STAGING_PATH = os.getenv("STAGING_PATH")
+  BRONZE_TABLE_PATH = os.getenv("BRONZE_TABLE_PATH")
+  BRONZE_TABLE_NAME = os.getenv("BRONZE_TABLE_NAME")
+
 
   EXECUTION_DATE = dt.strptime(EXECUTION_DATE, '%Y-%m-%d %H:%M:%S%z')
   partition_ohour = dt.strftime(EXECUTION_DATE, "%Y-%m-%d-%H")
 
-  spark = get_spark_session(spark_app_name)
-  spark.sql(f"DROP TABLE IF EXISTS {BRONZE_TABLE_NAME} PURGE")
-
+  spark = get_spark_session(APP_NAME)
 
   status = (
     ActorStagingToBronze(spark, logger)
       .create_bronze_table(BRONZE_TABLE_NAME, BRONZE_TABLE_PATH)
-      .config_path_staging_files(PREFIX, EXECUTION_DATE)
+      .config_path_staging_files(STAGING_PATH, EXECUTION_DATE)
       .read_from_staging()
       .write_to_bronze(BRONZE_TABLE_NAME, partition_ohour)
   )
