@@ -165,6 +165,4 @@ with DAG(
     )
 
     starting_process >> create_namespace_bronze >> create_table_bronze_wsl
-    starting_process >> create_namespace_silver >> create_table_silver_wsl
-
-    starting_process >> create_namespace_gold >> [create_view_gold_1, create_view_gold_2, create_view_gold_3, create_view_gold_4, create_view_gold_5, create_view_gold_6]
+    starting_process >> create_namespace_silver >> create_table_silver_wsl >> create_namespace_gold >> [create_view_gold_1, create_view_gold_2, create_view_gold_3, create_view_gold_4, create_view_gold_5, create_view_gold_6]

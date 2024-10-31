@@ -17,28 +17,6 @@ class ActorBronzeToSilver:
     self.df_transformed = None
 
 
-  def create_silver_table(self, table_name, table_path):
-    self.spark.sql(f"CREATE NAMESPACE IF NOT EXISTS nessie.silver")
-    self.spark.sql(f"""
-      CREATE EXTERNAL TABLE IF NOT EXISTS {table_name} (
-      ip_address STRING                 NOT NULL COMMENT 'IP Address',
-      user STRING                       NOT NULL COMMENT 'User authenticated',
-      response_utc_timestamp TIMESTAMP  NOT NULL COMMENT 'Response timestamp in UTC',
-      http_method STRING                NOT NULL COMMENT 'HTTP Method',
-      http_route STRING                 NOT NULL COMMENT 'HTTP Route',
-      http_protocol STRING              NOT NULL COMMENT 'HTTP Protocol',
-      http_status INT                   NOT NULL COMMENT 'HTTP Status',
-      payload_size INT                  NOT NULL COMMENT 'Payload size',
-      date_ref STRING                   NOT NULL COMMENT 'Date reference')
-    USING iceberg
-    PARTITIONED BY (date_ref)
-    LOCATION '{table_path}'
-    TBLPROPERTIES ('gc.enabled' = 'true')""")
-    self.spark.table(table_name).printSchema()
-    self.logger.info(f"Table {table_name} created")
-    return self
-
-
   def read_from_bronze(self, bronze_table_name, ohour):
     self.df_bronze =  self.spark.table(bronze_table_name).filter(col("date_ref") == ohour)
     return self
@@ -94,7 +72,7 @@ class ActorBronzeToSilver:
 
 if __name__ == "__main__":
   
-  APP_NAME = "STAGING_TO_BRONZE"
+  APP_NAME = "BRONZE_TO_SILVER"
   logger = logging.getLogger(__name__)
   logger.setLevel(logging.INFO)
   logger.addHandler(logging.StreamHandler())
@@ -111,7 +89,6 @@ if __name__ == "__main__":
 
   status = (
     ActorBronzeToSilver(spark, logger)
-      .create_silver_table(SILVER_TABLE_NAME, SILVER_TABLE_PATH)
       .read_from_bronze(BRONZE_TABLE_NAME, partition_ohour)
       .parse_to_silver_schema()
       .cast_and_transform_to_silver()

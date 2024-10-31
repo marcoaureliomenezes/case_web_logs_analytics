@@ -16,21 +16,6 @@ class ActorStagingToBronze:
     self.df_transformed = None
 
 
-  def create_bronze_table(self, table_name, table_path):
-    self.spark.sql("CREATE NAMESPACE IF NOT EXISTS nessie.bronze")
-    self.spark.sql(f"""
-      CREATE EXTERNAL TABLE IF NOT EXISTS {table_name} (
-        value STRING    NOT NULL COMMENT 'Raw log line',
-        date_ref STRING NOT NULL COMMENT 'Date reference'
-      )
-      USING iceberg
-      LOCATION '{table_path}'
-      PARTITIONED BY (date_ref)
-      TBLPROPERTIES ('gc.enabled' = 'true')""")
-    self.spark.table(table_name).printSchema()
-    self.logger.info(f"Table {table_name} created")
-    return self
-
   def config_path_staging_files(self, prefix, execution_date):
     partitioned_path = dt.strftime(execution_date, 'year=%Y/month=%m/day=%d/hour=%H')
     self.path_staging = f"{prefix}/{partitioned_path}"
@@ -80,7 +65,6 @@ if __name__ == "__main__":
 
   status = (
     ActorStagingToBronze(spark, logger)
-      .create_bronze_table(BRONZE_TABLE_NAME, BRONZE_TABLE_PATH)
       .config_path_staging_files(STAGING_PATH, EXECUTION_DATE)
       .read_from_staging()
       .write_to_bronze(BRONZE_TABLE_NAME, partition_ohour)

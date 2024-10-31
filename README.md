@@ -6,7 +6,7 @@
 ## Índice
 
 - [1. Introdução](#1-introdução)
-- [2. Arquitetura Técnica e Serviços](#2-arquitetura-técnica-e-serviços)
+- [2. Arquitetura de Solução e Serviços](#2-arquitetura-de-solução-e-serviços)
 - [3. Considerações e Arquitetura de Solução](#3-considerações-e-arquitetura-de-solução)
 - [4. Considerações sobre implementação de camadas Bronze, Silver e Gold](#4-considerações-sobre-implementação-de-camadas-bronze-silver-e-gold)
 - [5. Reprodução do Case](#5-reprodução-do-case)
@@ -59,7 +59,7 @@ Com essa biblioteca é possível gerar dados randômicos usando um dicionário d
 - No pipeline definido no Apache Airflow, um operador DockerOperator executa o job que gera os logs de acesso a servidores web e envia para o MinIO.
 - Os arquivos são transferidos para buckets no MinIO de staging.
 
-### 1.3. Overview da solução
+### 1.3. Overview da solução Servicos
 
 Criada a forma de gerar os dados e envia-los para o MinIO, foi construída uma arquitetura de solução para processamento e análise dos logs de acesso a servidores web. A arquitetura de solução é composta por diferentes camadas, cada uma com um papel específico. As camadas são:
 
@@ -71,17 +71,33 @@ Criada a forma de gerar os dados e envia-los para o MinIO, foi construída uma a
 - **Orquestração**: Apache Airflow
 - **Monitoramento e Observabilidade**: Prometheus, Node Exporter, Cadvisor, Grafana
 
-#### Multi-hop Data Lakehouse
+**Observação**: Mais informações sobre a arquitetura de solução estão na seção 2.
 
-- Os dados brutos contendo os logs de acesso a servidores web são armazenados no MinIO em formato de texto e extensão .log e com compressão gzip.
+### 1.4. Overview da solução Dados
 
+- **Dados brutos** contendo os logs de acesso a servidores web são armazenados no MinIO em formato de texto e extensão .log e com compressão gzip.
 - **Tabela bronze**: Dados brutos lidos de arquivos de logs de acesso a servidores web. Tabela do tipo iceberg e particionada por data.
 - **Tabela silver**: Dados tratados e limpos, com colunas adicionais para facilitar análises. Tabela do tipo iceberg e particionada por data.
-- **Views gold**: Views que agregam dados de tabelas silver para análises de negócio. 
+- **Views gold**: Views que agregam dados de tabelas silver para análises de negócio. Existe uma view para cada pergunta do desafio.
 
-**Observação**: Existe uma view para cada pergunta do desafio.
+**Observação**: Mais informações sobre a arquitetura de solução estão na seção 3.
 
-## 2. Arquitetura técnica e serviços
+### 1.5. Solução e reproducibilidade
+
+- A solução foi desenvolvida usando Docker e Docker Compose para deploy de serviços.
+- Para facilitar a reprodução da solução, foi criado um Makefile com comandos para build, deploy e remoção dos serviços.
+- As imagens docker criadas para a solução estão em `/docker`.
+    - `/docker/app_layer`: Imagens que empacotam aplicações construídas em jobs Python e Spark.
+    - `/docker/customized`: Imagens customizadas a partir de imagens base do Spark, Airflow e Prometheus.
+    - `/services`: Arquivos yml que definem os serviços necessários para a solução.
+    - `/Makefile`: Arquivo com comandos para build, deploy e remoção dos serviços.
+
+
+Como um plus, foi criado um esboço da solução usando notebooks do Databricks Community Edition. O notebook está em `/db_community`.
+
+**Observação**: Mais informações sobre a arquitetura de solução estão na seção 5.
+
+## 2. Arquitetura de Solução e Serviços
 
 Para construção da solução uma plataforma de dados com diferentes serviços precisa ser construída. Cada serviço desempenha um papel específico. O intuito dessa seção é apresentar tais serviços, características e casos de uso, bem como a forma com que eles se relacionam.
 
@@ -222,7 +238,39 @@ No Grafana é possível adicionar importar dashboards prontos para monitoramento
 <img src="./img/reproduction/7_grafana_node_exporter.png" alt="grafana_node_exporter" width="80%"/>
 
 
-# 3. Considerações e Arquitetura de Solução
+## 3. Considerações e Arquitetura de Solução
+
+### 3.1. Dags do Airflow
+
+### 3.1.1. Dag eventual DDL
+
+Dag com Jobs eventuais para criação de namespaces, similar a databases, e tabela Iceberg no Nessie.
+
+[![dag_eventual.png](img/dag_eventual.png)](dag_eventual.png)
+
+
+### 3.1.2. Dag de Jobs de Ingestão
+
+
+### 3.1.3. Dag de Jobs de Processamento
+
+[![dag_diaria.png](img/dag_diaria.png)](dag_diaria.png)
+
+
+### 3.2. Visão de Tabelas e Views no Dremio
+
+### 3.2.1. Tabela Bronze
+
+[![bronze_table.png](img/bronze_table.png)](bronze_table.png)
+
+
+### 3.2.2. Tabela Silver
+
+[![silver_table.png](img/silver_table.png)](silver_table.png)
+
+#### 3.2.3. Views Gold
+
+[![view_gold.png](img/view_gold.png)](view_gold.png)
 
 # 4. Considerações sobre implementação de camadas Bronze, Silver e Gold
 
