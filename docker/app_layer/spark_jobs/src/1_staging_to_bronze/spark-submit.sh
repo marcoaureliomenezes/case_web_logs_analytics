@@ -5,8 +5,8 @@ PYFILES_SPARK_PATH="/app/utils/spark_utils.py"
 
 SPARK_MASTER="spark://spark-master:7077"
 
-EXEC_MEMORY=1G
-TOTAL_EXEC_CORES=1
+EXEC_MEMORY=2G
+TOTAL_EXEC_CORES=2
 
 echo "spark-submit                                  "
 echo "    --deploy-mode client                      "

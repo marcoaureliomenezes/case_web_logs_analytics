@@ -35,8 +35,9 @@ services:
       - ../docker/app_layer/python_jobs/src:/app
     environment:
       EXECUTION_DATE: "2024-10-21 07:00:00+00:00"
-      BUCKET: staging
+      BUCKET: raw-data
       PREFIX_PATH: web-server-logs
+      SERVER: server-1
 
 
   spark_job_bronze:
@@ -48,7 +49,8 @@ services:
       - ../docker/app_layer/spark_jobs/src:/app
     environment:
       EXECUTION_DATE: "2024-10-21 07:00:00+00:00"
-      STAGING_PATH: "s3a://staging/web-server-logs"
+      STAGING_PATH: "s3a://raw-data/web-server-logs"
+      SERVER_NAME: "server-1"
       BRONZE_TABLE_NAME: "nessie.bronze.wsl_logs"
       BRONZE_TABLE_PATH: "s3a://lakehouse/bronze/wsl_logs"
 

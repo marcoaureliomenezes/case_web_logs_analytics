@@ -29,7 +29,6 @@ class ActorBronzeToSilver:
       .withColumn('log_clean', split(col('log_clean'), '  '))
     )
 
-    df_parsed_schema.show(20, False)
     self.df_parsed_schema = df_parsed_schema.select(
         col('log_clean').getItem(0).alias('ip_address'),
         col('log_clean').getItem(2).alias('user'),
@@ -39,7 +38,8 @@ class ActorBronzeToSilver:
         col('log_clean').getItem(6).alias('http_route'),
         col('log_clean').getItem(7).alias('http_protocol'),
         col('log_clean').getItem(8).cast('int').alias('http_status'),
-        col('log_clean').getItem(9).cast('int').alias('payload_size')
+        col('log_clean').getItem(9).cast('int').alias('payload_size'),
+        col("server_name")
     )
     return self
 
@@ -58,16 +58,11 @@ class ActorBronzeToSilver:
   
   def write_to_silver(self, table_name):
     assert self.df_transformed is not None, "The dataframe must be casted and transformed before with 'cast_and_transform_to_silver' method"
-    final_cols = ["ip_address", "user", "response_utc_timestamp", "http_method", "http_route", "http_protocol", "http_status", "payload_size", "date_ref"]
+    final_cols = ["ip_address", "user", "response_utc_timestamp", "http_method", "http_route", "http_protocol", "http_status", "payload_size", "server_name", "date_ref"]
     df_to_write = self.df_transformed.select(*final_cols)
     df_to_write.show()
-    df_to_write.printSchema()
-    _ = (
-      df_to_write.write
-      .mode("overwrite")
-      .partitionBy("date_ref")
-      .saveAsTable(table_name)
-    )
+
+    df_to_write.writeTo(table_name).overwritePartitions()
 
 
 if __name__ == "__main__":
@@ -83,7 +78,7 @@ if __name__ == "__main__":
   SILVER_TABLE_PATH = os.getenv("SILVER_TABLE_PATH")
 
   EXECUTION_DATE = dt.strptime(EXECUTION_DATE, '%Y-%m-%d %H:%M:%S%z')
-  partition_ohour = dt.strftime(EXECUTION_DATE, "%Y-%m-%d-%H")
+  partition_ohour = dt.strftime(EXECUTION_DATE, "%Y-%m-%d")
 
   spark = get_spark_session(APP_NAME)
 

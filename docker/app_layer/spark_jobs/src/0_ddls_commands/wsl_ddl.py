@@ -14,10 +14,11 @@ class wslDDL:
     self.spark.sql(f"""
       CREATE EXTERNAL TABLE IF NOT EXISTS {table_name} (
       value STRING    NOT NULL COMMENT 'Raw log line',
-      date_ref STRING NOT NULL COMMENT 'Date reference')
+      server_name     STRING NOT NULL COMMENT 'Server name',
+      date_ref        STRING NOT NULL COMMENT 'Date reference')
     USING iceberg
     LOCATION '{table_path}'
-    PARTITIONED BY (date_ref)
+    PARTITIONED BY (date_ref, server_name)
     TBLPROPERTIES ('gc.enabled' = 'true')""")
     self.spark.table(table_name).printSchema()
     self.logger.info(f"Table {table_name} created")
@@ -35,9 +36,10 @@ class wslDDL:
       http_protocol STRING              NOT NULL COMMENT 'HTTP Protocol',
       http_status INT                   NOT NULL COMMENT 'HTTP Status',
       payload_size INT                  NOT NULL COMMENT 'Payload size',
-      date_ref STRING                   NOT NULL COMMENT 'Date reference')
+      date_ref STRING                   NOT NULL COMMENT 'Date reference',
+      server_name STRING                NOT NULL COMMENT 'Server name')
     USING iceberg
-    PARTITIONED BY (date_ref)
+    PARTITIONED BY (date_ref, server_name)
     LOCATION '{table_path}'
     TBLPROPERTIES ('gc.enabled' = 'true')""")
     self.spark.table(table_name).printSchema()
